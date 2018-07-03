@@ -10,7 +10,7 @@
 //#include <iostream>
 
 
-template<class TKey, class TValue>
+template<class TKey, class TValue, class THash=std::hash<TKey>>
 class LRUCache {
 public:
     LRUCache(uint32_t capacity, const TValue& empty_value);
@@ -27,18 +27,18 @@ protected:
     std::list<TKey> access_order;
 
     // Map to store (key, value) pairs.
-    std::unordered_map<TKey, TValue> cache;
+    std::unordered_map<TKey, TValue, THash> cache;
 
     // Map for quick lookup of access order.
-    std::unordered_map<TKey, typename std::list<TKey>::iterator> access_order_it;
+    std::unordered_map<TKey, typename std::list<TKey>::iterator, THash> access_order_it;
 
     void bring_to_front(const TKey& key);
     void remove_lru();
 };
 
 
-template<class TKey, class TValue>
-class CachedFunction : public LRUCache<TKey,TValue> {
+template<class TKey, class TValue, class THash=std::hash<TKey>>
+class CachedFunction : public LRUCache<TKey,TValue,THash> {
 public:
     CachedFunction(std::function<TValue(const TKey&)> f, uint32_t capacity);
     ~CachedFunction();
@@ -52,18 +52,18 @@ private:
 };
 
 
-template<class TKey, class TValue>
-CachedFunction<TKey, TValue>::CachedFunction(std::function<TValue(const TKey&)> f, uint32_t capacity)
-    : LRUCache<TKey, TValue>(capacity, TValue()), f(f)
+template<class TKey, class TValue, class THash>
+CachedFunction<TKey, TValue, THash>::CachedFunction(std::function<TValue(const TKey&)> f, uint32_t capacity)
+    : LRUCache<TKey, TValue, THash>(capacity, TValue()), f(f)
 {}
 
 
-template<class TKey, class TValue>
-CachedFunction<TKey, TValue>::~CachedFunction() {}
+template<class TKey, class TValue, class THash>
+CachedFunction<TKey, TValue, THash>::~CachedFunction() {}
 
 
-template<class TKey, class TValue>
-TValue CachedFunction<TKey, TValue>::eval(const TKey& arg) {
+template<class TKey, class TValue, class THash>
+TValue CachedFunction<TKey, TValue, THash>::eval(const TKey& arg) {
     // Look up key in cache
     auto cache_it = this->cache.find(arg);
     if(cache_it == this->cache.end()) { // Key not found
@@ -83,24 +83,24 @@ TValue CachedFunction<TKey, TValue>::eval(const TKey& arg) {
 }
 
 
-template<class TKey, class TValue>
-TValue CachedFunction<TKey, TValue>::operator()(const TKey& arg) {
+template<class TKey, class TValue, class THash>
+TValue CachedFunction<TKey, TValue, THash>::operator()(const TKey& arg) {
     return eval(arg);
 }
 
 
-template<class TKey, class TValue>
-LRUCache<TKey, TValue>::LRUCache(uint32_t capacity, const TValue& empty_value)
+template<class TKey, class TValue, class THash>
+LRUCache<TKey, TValue, THash>::LRUCache(uint32_t capacity, const TValue& empty_value)
     : capacity(capacity), empty_value(empty_value)
 {}
 
 
-template<class TKey, class TValue>
-LRUCache<TKey, TValue>::~LRUCache() {}
+template<class TKey, class TValue, class THash>
+LRUCache<TKey, TValue, THash>::~LRUCache() {}
 
 
-template<class TKey, class TValue>
-TValue LRUCache<TKey, TValue>::get(const TKey& key) {
+template<class TKey, class TValue, class THash>
+TValue LRUCache<TKey, TValue, THash>::get(const TKey& key) {
     // Look up key in cache
     auto cache_it = cache.find(key);
     if(cache_it == cache.end()) { // Key not found
@@ -114,8 +114,8 @@ TValue LRUCache<TKey, TValue>::get(const TKey& key) {
 }
 
 
-template<class TKey, class TValue>
-void LRUCache<TKey, TValue>::set(const TKey& key, const TValue& value) {
+template<class TKey, class TValue, class THash>
+void LRUCache<TKey, TValue, THash>::set(const TKey& key, const TValue& value) {
     // Look up key in cache
     auto cache_it = cache.find(key);
     if(cache_it == cache.end()) { // Key not in cache
@@ -138,8 +138,8 @@ void LRUCache<TKey, TValue>::set(const TKey& key, const TValue& value) {
 }
 
 
-template<class TKey, class TValue>
-void LRUCache<TKey, TValue>::remove_lru() {
+template<class TKey, class TValue, class THash>
+void LRUCache<TKey, TValue, THash>::remove_lru() {
     // Look up key of least-recently-used element
     const TKey& key = access_order.back();
     // Erase key from cache and access-order-iterator lookup
@@ -150,8 +150,8 @@ void LRUCache<TKey, TValue>::remove_lru() {
 }
 
 
-template<class TKey, class TValue>
-void LRUCache<TKey, TValue>::bring_to_front(const TKey& key) {
+template<class TKey, class TValue, class THash>
+void LRUCache<TKey, TValue, THash>::bring_to_front(const TKey& key) {
     auto ao_it = access_order_it.find(key); // Assumed to be found
     if(ao_it->second != access_order.begin()) {
         // Move key to front of access-order list
