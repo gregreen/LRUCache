@@ -31,10 +31,10 @@ int main(int argc, char* argv[]) {
     );
 
     for(int i=-5; i<=5; i++) {
-        std::cout << f.eval(i) << std::endl;
+        std::cout << f(i) << std::endl;
     }
     for(int i=5; i>=-5; i--) {
-        std::cout << f.eval(i) << std::endl;
+        std::cout << f(i) << std::endl;
     }
 
     return 0;

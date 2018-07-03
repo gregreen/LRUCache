@@ -44,6 +44,8 @@ public:
     ~CachedFunction();
     
     TValue eval(const TKey& arg);
+
+    TValue operator()(const TKey& arg);
     
 private:
     std::function<TValue(const TKey&)> f;
@@ -78,6 +80,12 @@ TValue CachedFunction<TKey, TValue>::eval(const TKey& arg) {
         // Return cached value
         return cache_it->second;
     }
+}
+
+
+template<class TKey, class TValue>
+TValue CachedFunction<TKey, TValue>::operator()(const TKey& arg) {
+    return eval(arg);
 }
 
 
