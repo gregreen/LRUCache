@@ -37,12 +37,40 @@
 #include <list>
 #include <unordered_map>
 #include <functional>
+#include <vector>
+
 
 #define LRUCACHE_VERBOSE 1 // Set to 1 for hit/miss stats, 0 for quiet
 
 #if LRUCACHE_VERBOSE
 #include <iostream>
 #endif
+
+
+namespace LRUCache {
+
+
+template<class T>
+class VectorHasher {
+    // Hashing function for vectors, required to use them as
+    // keys in an unordered_map. Adapted from HolKann's
+    // StackOverflow answer: <https://stackoverflow.com/a/27216842/1103939>.
+public:
+    std::size_t operator()(const std::vector<T>& vec) const;
+};
+
+
+template<class T>
+std::size_t VectorHasher<T>::operator()(
+        const std::vector<T>& vec) const
+{
+    std::size_t seed = vec.size();
+    for(auto& v : vec) {
+        seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+    return seed;
+}
+
 
 
 template<class TKey, class TValue, class THash=std::hash<TKey>>
@@ -239,6 +267,9 @@ void LRUCache<TKey, TValue, THash>::bring_to_front(const TKey& key) {
         ao_it->second = access_order.begin();
     }
 }
+
+
+} // namespace LRUCache
 
 
 #endif // _LRU_CACHE_H__

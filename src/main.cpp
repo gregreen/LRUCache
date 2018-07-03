@@ -5,32 +5,10 @@
 #include <vector>
 
 
-template<class T>
-class VectorHasher {
-    // Hashing function for vectors, required to use them as
-    // keys in an unordered_map. Taken from HolKann's
-    // StackOverflow answer: <https://stackoverflow.com/a/27216842/1103939>.
-public:
-    std::size_t operator()(const std::vector<T>& vec) const;
-};
-
-
-template<class T>
-std::size_t VectorHasher<T>::operator()(
-        const std::vector<T>& vec) const
-{
-    std::size_t seed = vec.size();
-    for(auto& v : vec) {
-        seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    return seed;
-}
-
-
 int main(int argc, char* argv[]) {
     uint32_t capacity = 4;
     double empty_value = std::numeric_limits<double>::quiet_NaN();
-    LRUCache<int, double> cache(capacity, empty_value);
+    LRUCache::LRUCache<int, double> cache(capacity, empty_value);
 
     cache.set(0, 1.);
     cache.set(1, 2.);
@@ -46,7 +24,7 @@ int main(int argc, char* argv[]) {
     std::cout << cache.get(5) << std::endl;
 
 
-    CachedFunction<int, double> f(
+    LRUCache::CachedFunction<int, double> f(
         [](int x) -> double {
             return x*x;
         },
@@ -60,7 +38,7 @@ int main(int argc, char* argv[]) {
         std::cout << f(i) << std::endl;
     }
     
-    CachedFunction<std::vector<double>, double, VectorHasher<double>> g(
+    LRUCache::CachedFunction<std::vector<double>, double, LRUCache::VectorHasher<double>> g(
         [](const std::vector<double>& vec) -> double {
             double ret = 1.;
             for(auto v : vec) {
