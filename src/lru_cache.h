@@ -36,6 +36,7 @@ protected:
     // Map for quick lookup of access order.
     std::unordered_map<TKey, typename std::list<TKey>::iterator, THash> access_order_it;
 
+    void push_front(const TKey& key, const TValue& value);
     void bring_to_front(const TKey& key);
     void remove_lru();
 
@@ -76,7 +77,7 @@ TValue CachedFunction<TKey, TValue, THash>::eval(const TKey& arg) {
     auto cache_it = this->cache.find(arg);
     if(cache_it == this->cache.end()) { // Key not found
         TValue value = f(arg);
-        this->set(arg, value);
+        this->push_front(arg, value);
         return value;
     } else { // Key found
         #if LRUCACHE_VERBOSE
@@ -144,24 +145,29 @@ TValue LRUCache<TKey, TValue, THash>::get(const TKey& key) {
 
 
 template<class TKey, class TValue, class THash>
+void LRUCache<TKey, TValue, THash>::push_front(const TKey& key, const TValue& value) {
+    #if LRUCACHE_VERBOSE
+    n_miss++;
+    #endif
+
+    // Add (key, value) pair to cache
+    auto cache_it = cache.insert({key, value}).first;
+    // Insert key into access-order list
+    access_order.push_front(key);
+    // Update access-order lookup
+    access_order_it.insert({key, access_order.begin()});
+    // If over capacity, remove least-recently-used key
+    if(cache.size() > capacity) {
+        remove_lru();
+    }
+}
+
+template<class TKey, class TValue, class THash>
 void LRUCache<TKey, TValue, THash>::set(const TKey& key, const TValue& value) {
     // Look up key in cache
     auto cache_it = cache.find(key);
     if(cache_it == cache.end()) { // Key not in cache
-        #if LRUCACHE_VERBOSE
-        n_miss++;
-        #endif
-
-        // Add (key, value) pair to cache
-        cache_it = cache.insert({key, value}).first;
-        // Insert key into access-order list
-        access_order.push_front(key);
-        // Update access-order lookup
-        access_order_it.insert({key, access_order.begin()});
-        // If over capacity, remove least-recently-used key
-        if(cache.size() > capacity) {
-            remove_lru();
-        }
+        push_front(key, value);
     } else { // Key found
         #if LRUCACHE_VERBOSE
         n_hit++;
