@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <functional>
 
-#define LRUCACHE_VERBOSE 1
+#define LRUCACHE_VERBOSE 1 // Set to 1 for hit/miss stats, 0 for quiet
 
 #if LRUCACHE_VERBOSE
 #include <iostream>
@@ -75,12 +75,10 @@ TValue CachedFunction<TKey, TValue, THash>::eval(const TKey& arg) {
     // Look up key in cache
     auto cache_it = this->cache.find(arg);
     if(cache_it == this->cache.end()) { // Key not found
-        //std::cout << "Evaluating f(arg)" << std::endl;
         TValue value = f(arg);
         this->set(arg, value);
         return value;
     } else { // Key found
-        //std::cout << "Using cached result of f(arg)" << std::endl;
         #if LRUCACHE_VERBOSE
         this->n_hit++;
         #endif
