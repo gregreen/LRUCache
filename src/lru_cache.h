@@ -7,7 +7,11 @@
 #include <unordered_map>
 #include <functional>
 
-//#include <iostream>
+#define LRUCACHE_VERBOSE 1
+
+#if LRUCACHE_VERBOSE
+#include <iostream>
+#endif
 
 
 template<class TKey, class TValue, class THash=std::hash<TKey>>
@@ -34,6 +38,10 @@ protected:
 
     void bring_to_front(const TKey& key);
     void remove_lru();
+
+    #if LRUCACHE_VERBOSE
+    uint64_t n_hit, n_miss, n_replace;
+    #endif
 };
 
 
@@ -68,12 +76,14 @@ TValue CachedFunction<TKey, TValue, THash>::eval(const TKey& arg) {
     auto cache_it = this->cache.find(arg);
     if(cache_it == this->cache.end()) { // Key not found
         //std::cout << "Evaluating f(arg)" << std::endl;
-
         TValue value = f(arg);
         this->set(arg, value);
         return value;
     } else { // Key found
         //std::cout << "Using cached result of f(arg)" << std::endl;
+        #if LRUCACHE_VERBOSE
+        this->n_hit++;
+        #endif
 
         // Update access order
         this->bring_to_front(arg);
@@ -92,11 +102,24 @@ TValue CachedFunction<TKey, TValue, THash>::operator()(const TKey& arg) {
 template<class TKey, class TValue, class THash>
 LRUCache<TKey, TValue, THash>::LRUCache(uint32_t capacity, const TValue& empty_value)
     : capacity(capacity), empty_value(empty_value)
-{}
+{
+    #if LRUCACHE_VERBOSE
+    n_hit = 0;
+    n_miss = 0;
+    n_replace = 0;
+    #endif
+}
 
 
 template<class TKey, class TValue, class THash>
-LRUCache<TKey, TValue, THash>::~LRUCache() {}
+LRUCache<TKey, TValue, THash>::~LRUCache() {
+    #if LRUCACHE_VERBOSE
+    std::cout << "LRUCache hits/misses/replacements = "
+              << n_hit << " / "
+              << n_miss << " / "
+              << n_replace << std::endl;
+    #endif
+}
 
 
 template<class TKey, class TValue, class THash>
@@ -104,8 +127,16 @@ TValue LRUCache<TKey, TValue, THash>::get(const TKey& key) {
     // Look up key in cache
     auto cache_it = cache.find(key);
     if(cache_it == cache.end()) { // Key not found
+        #if LRUCACHE_VERBOSE
+        n_miss++;
+        #endif
+
         return empty_value;
     } else { // Key found
+        #if LRUCACHE_VERBOSE
+        n_hit++;
+        #endif
+
         // Update access order
         bring_to_front(key);
         // Return cached value
@@ -119,6 +150,10 @@ void LRUCache<TKey, TValue, THash>::set(const TKey& key, const TValue& value) {
     // Look up key in cache
     auto cache_it = cache.find(key);
     if(cache_it == cache.end()) { // Key not in cache
+        #if LRUCACHE_VERBOSE
+        n_miss++;
+        #endif
+
         // Add (key, value) pair to cache
         cache_it = cache.insert({key, value}).first;
         // Insert key into access-order list
@@ -130,6 +165,10 @@ void LRUCache<TKey, TValue, THash>::set(const TKey& key, const TValue& value) {
             remove_lru();
         }
     } else { // Key found
+        #if LRUCACHE_VERBOSE
+        n_hit++;
+        #endif
+
         // Bring key to front of access order list
         bring_to_front(key);
         // Update value
@@ -140,6 +179,10 @@ void LRUCache<TKey, TValue, THash>::set(const TKey& key, const TValue& value) {
 
 template<class TKey, class TValue, class THash>
 void LRUCache<TKey, TValue, THash>::remove_lru() {
+    #if LRUCACHE_VERBOSE
+    n_replace++;
+    #endif
+
     // Look up key of least-recently-used element
     const TKey& key = access_order.back();
     // Erase key from cache and access-order-iterator lookup
