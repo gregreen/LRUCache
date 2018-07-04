@@ -3,6 +3,7 @@
 #include <iostream>
 #include <limits>
 #include <vector>
+#include <random>
 
 
 int main(int argc, char* argv[]) {
@@ -54,8 +55,28 @@ int main(int argc, char* argv[]) {
         for(int j=1; (j<=i) && (j<=5); j++) {
             v.push_back((double)j);
         }
-        std::cout << g(v) << std::endl;
+        std::cout << g.eval_ref(v) << std::endl;
     }
+
+    
+    std::mt19937 r(2);
+
+    LRUCache::CachedFunction<
+        std::vector<double>,
+        std::discrete_distribution<int>,
+        LRUCache::VectorHasher<double>
+    > zeta(
+        [](const std::vector<double>& vec) -> std::discrete_distribution<int> {
+            return std::discrete_distribution<int>(vec.begin(), vec.end());
+        },
+        capacity
+    );
+
+    zeta.eval_ref({0., 1., 1., 0.1});
+    for(int i=0; i<20; i++) {
+        std::cout << zeta.eval_ref({0., 1., 1., 0.1})(r) << " ";
+    }
+    std::cout << std::endl;
 
     return 0;
 }

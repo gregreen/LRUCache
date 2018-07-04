@@ -95,7 +95,7 @@ protected:
     // Map for quick lookup of access order.
     std::unordered_map<TKey, typename std::list<TKey>::iterator, THash> access_order_it;
 
-    void push_front(const TKey& key, const TValue& value);
+    typename std::unordered_map<TKey, TValue, THash>::iterator push_front(const TKey& key, const TValue& value);
     void bring_to_front(const TKey& key);
     void remove_lru();
 
@@ -114,6 +114,8 @@ public:
     TValue eval(const TKey& arg);
 
     TValue operator()(const TKey& arg);
+
+    TValue& eval_ref(const TKey& arg);
     
 private:
     std::function<TValue(const TKey&)> f;
@@ -138,6 +140,27 @@ TValue CachedFunction<TKey, TValue, THash>::eval(const TKey& arg) {
         TValue value = f(arg);
         this->push_front(arg, value);
         return value;
+    } else { // Key found
+        #if LRUCACHE_VERBOSE
+        this->n_hit++;
+        #endif
+
+        // Update access order
+        this->bring_to_front(arg);
+        // Return cached value
+        return cache_it->second;
+    }
+}
+
+
+template<class TKey, class TValue, class THash>
+TValue& CachedFunction<TKey, TValue, THash>::eval_ref(const TKey& arg) {
+    // Look up key in cache
+    auto cache_it = this->cache.find(arg);
+    if(cache_it == this->cache.end()) { // Key not found
+        TValue value = f(arg);
+        auto it = this->push_front(arg, value);
+        return it->second;
     } else { // Key found
         #if LRUCACHE_VERBOSE
         this->n_hit++;
@@ -204,7 +227,10 @@ TValue LRUCache<TKey, TValue, THash>::get(const TKey& key) {
 
 
 template<class TKey, class TValue, class THash>
-void LRUCache<TKey, TValue, THash>::push_front(const TKey& key, const TValue& value) {
+typename std::unordered_map<TKey, TValue, THash>::iterator LRUCache<TKey, TValue, THash>::push_front(
+        const TKey& key,
+        const TValue& value)
+{
     #if LRUCACHE_VERBOSE
     n_miss++;
     #endif
@@ -219,6 +245,8 @@ void LRUCache<TKey, TValue, THash>::push_front(const TKey& key, const TValue& va
     if(cache.size() > capacity) {
         remove_lru();
     }
+
+    return cache_it;
 }
 
 template<class TKey, class TValue, class THash>
