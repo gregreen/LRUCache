@@ -4,6 +4,7 @@
 #include <limits>
 #include <vector>
 #include <random>
+#include <memory>
 
 
 int main(int argc, char* argv[]) {
@@ -59,6 +60,7 @@ int main(int argc, char* argv[]) {
     }
 
     
+    // Store discrete_distribution
     std::mt19937 r(2);
 
     LRUCache::CachedFunction<
@@ -75,6 +77,57 @@ int main(int argc, char* argv[]) {
     zeta.eval_ref({0., 1., 1., 0.1});
     for(int i=0; i<20; i++) {
         std::cout << zeta.eval_ref({0., 1., 1., 0.1})(r) << " ";
+    }
+    std::cout << std::endl;
+    
+    int idx;
+    auto get_disc_rand = [&r, &idx](std::discrete_distribution<int>& dd) -> void {
+        idx = dd(r);
+    };
+    
+    for(int i=0; i<20; i++) {
+        zeta({0.5, 1., 1., 0.5}, get_disc_rand);
+        std::cout << idx << " ";
+    }
+    std::cout << std::endl;
+    
+    
+    // Store shared_ptr containing discrete_distribution
+    LRUCache::CachedFunction<
+        std::vector<double>,
+        std::shared_ptr<std::discrete_distribution<int>>,
+        LRUCache::VectorHasher<double>
+    > theta(
+        [](const std::vector<double>& vec) -> std::shared_ptr<std::discrete_distribution<int>> {
+            return std::make_shared<std::discrete_distribution<int>>(vec.begin(), vec.end());
+        },
+        capacity,
+        nullptr
+    );
+    
+    auto get_disc_rand_ptr = [&r, &idx](std::shared_ptr<std::discrete_distribution<int>>& dd) -> void {
+        idx = (*dd)(r);
+    };
+    
+    for(int i=0; i<5; i++) {
+        theta({0.5, 1., 1., 0.5}, get_disc_rand_ptr);
+        std::cout << idx << " ";
+    }
+    for(int i=0; i<5; i++) {
+        theta({0.5, 0., 1., 0.5}, get_disc_rand_ptr);
+        std::cout << idx << " ";
+    }
+    for(int i=0; i<5; i++) {
+        theta({0.5, 2., 1., 0.5}, get_disc_rand_ptr);
+        std::cout << idx << " ";
+    }
+    for(int i=0; i<5; i++) {
+        theta({0.5, 1.5, 1., 0.5}, get_disc_rand_ptr);
+        std::cout << idx << " ";
+    }
+    for(int i=0; i<5; i++) {
+        theta({1.5, 1., 1., 0.5}, get_disc_rand_ptr);
+        std::cout << idx << " ";
     }
     std::cout << std::endl;
 
