@@ -109,11 +109,14 @@ template<class TKey, class TValue, class THash=std::hash<TKey>>
 class CachedFunction : public LRUCache<TKey,TValue,THash> {
 public:
     CachedFunction(std::function<TValue(const TKey&)> f, uint32_t capacity);
+    CachedFunction(std::function<TValue(const TKey&)> f, uint32_t capacity, const TValue& empty_value);
     ~CachedFunction();
     
     TValue eval(const TKey& arg);
-
     TValue operator()(const TKey& arg);
+    
+    void eval(const TKey& arg, std::function<void(TValue&)>);
+    void operator()(const TKey& arg, std::function<void(TValue&)>);
 
     TValue& eval_ref(const TKey& arg);
     
@@ -125,6 +128,12 @@ private:
 template<class TKey, class TValue, class THash>
 CachedFunction<TKey, TValue, THash>::CachedFunction(std::function<TValue(const TKey&)> f, uint32_t capacity)
     : LRUCache<TKey, TValue, THash>(capacity, TValue()), f(f)
+{}
+
+
+template<class TKey, class TValue, class THash>
+CachedFunction<TKey, TValue, THash>::CachedFunction(std::function<TValue(const TKey&)> f, uint32_t capacity, const TValue& empty_value)
+    : LRUCache<TKey, TValue, THash>(capacity, empty_value), f(f)
 {}
 
 
@@ -154,6 +163,28 @@ TValue CachedFunction<TKey, TValue, THash>::eval(const TKey& arg) {
 
 
 template<class TKey, class TValue, class THash>
+void CachedFunction<TKey, TValue, THash>::eval(const TKey& arg, std::function<void(TValue&)> g) {
+    // Look up key in cache
+    auto cache_it = this->cache.find(arg);
+    if(cache_it == this->cache.end()) { // Key not found
+        TValue value = f(arg);
+        this->push_front(arg, value);
+        // Operate on newly computed value
+        g(value);
+    } else { // Key found
+        #if LRUCACHE_VERBOSE
+        this->n_hit++;
+        #endif
+
+        // Update access order
+        this->bring_to_front(arg);
+        // Operate on cached value
+        g(cache_it->second);
+    }
+}
+
+
+template<class TKey, class TValue, class THash>
 TValue& CachedFunction<TKey, TValue, THash>::eval_ref(const TKey& arg) {
     // Look up key in cache
     auto cache_it = this->cache.find(arg);
@@ -177,6 +208,12 @@ TValue& CachedFunction<TKey, TValue, THash>::eval_ref(const TKey& arg) {
 template<class TKey, class TValue, class THash>
 TValue CachedFunction<TKey, TValue, THash>::operator()(const TKey& arg) {
     return eval(arg);
+}
+
+
+template<class TKey, class TValue, class THash>
+void CachedFunction<TKey, TValue, THash>::operator()(const TKey& arg, std::function<void(TValue&)> g) {
+    return eval(arg, g);
 }
 
 
@@ -236,11 +273,11 @@ typename std::unordered_map<TKey, TValue, THash>::iterator LRUCache<TKey, TValue
     #endif
 
     // Add (key, value) pair to cache
-    auto cache_it = cache.insert({key, value}).first;
+    auto cache_it = cache.insert(std::make_pair(key, value)).first;
     // Insert key into access-order list
     access_order.push_front(key);
     // Update access-order lookup
-    access_order_it.insert({key, access_order.begin()});
+    access_order_it.insert(std::make_pair(key, access_order.begin()));
     // If over capacity, remove least-recently-used key
     if(cache.size() > capacity) {
         remove_lru();
